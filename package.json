@@ -1,0 +1,16 @@
+{
+  "name": "sprinkler-relay-server",
+  "version": "1.0.0",
+  "description": "Cloud proxy server for ESP32/ESP8266 Sprinkler Relay dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
