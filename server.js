@@ -29,10 +29,22 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Device Polling Endpoint - called by ESP device every second
 app.post('/api/device/poll', (req, res) => {
-    // Cache the status reported by the device
+    // Invert the relay state and mode logic to match inverted relay hardware
+    let invertedMode = req.body.mode;
+    if (req.body.mode === 'countdown_off') {
+        invertedMode = 'countdown_on';
+    } else if (req.body.mode === 'countdown_on') {
+        invertedMode = 'countdown_off';
+    } else if (req.body.mode === 'cycle_on') {
+        invertedMode = 'cycle_off';
+    } else if (req.body.mode === 'cycle_off') {
+        invertedMode = 'cycle_on';
+    }
+
+    // Cache the status reported by the device (with inverted relay and mode states)
     deviceStatus = {
-        relay: req.body.relay,
-        mode: req.body.mode,
+        relay: !req.body.relay,
+        mode: invertedMode,
         remaining: req.body.remaining,
         total: req.body.total,
         ip: req.body.ip || req.ip,
@@ -59,28 +71,37 @@ app.get('/api/status', (req, res) => {
 // Browser API: Manual toggle
 app.get('/api/manual', (req, res) => {
     const { state } = req.query;
-    pendingCommand = { command: 'manual', state };
+    // Invert the target state sent to the physical device
+    const targetDeviceState = (state === 'on') ? 'off' : 'on';
+    pendingCommand = { command: 'manual', state: targetDeviceState };
     res.json({ success: true, pending: pendingCommand });
 });
 
-// Browser API: Start OFF timer
+// Browser API: Start OFF timer (turns ON immediately, counts down to OFF)
 app.get('/api/timer/off', (req, res) => {
     const { duration } = req.query;
-    pendingCommand = { command: 'timer_off', duration: parseInt(duration) || 0 };
+    // Inverted: Turn ON (physical OFF) and countdown to OFF (physical ON)
+    pendingCommand = { command: 'timer_on', duration: parseInt(duration) || 0 };
     res.json({ success: true, pending: pendingCommand });
 });
 
-// Browser API: Start ON timer
+// Browser API: Start ON timer (turns OFF immediately, counts down to ON)
 app.get('/api/timer/on', (req, res) => {
     const { duration } = req.query;
-    pendingCommand = { command: 'timer_on', duration: parseInt(duration) || 0 };
+    // Inverted: Turn OFF (physical ON) and countdown to ON (physical OFF)
+    pendingCommand = { command: 'timer_off', duration: parseInt(duration) || 0 };
     res.json({ success: true, pending: pendingCommand });
 });
 
 // Browser API: Start cycle loop
 app.get('/api/timer/cycle', (req, res) => {
     const { on, off } = req.query;
-    pendingCommand = { command: 'timer_cycle', on: parseInt(on) || 0, off: parseInt(off) || 0 };
+    // Inverted: swap the ON and OFF phase durations for the physical device
+    pendingCommand = { 
+        command: 'timer_cycle', 
+        on: parseInt(off) || 0, 
+        off: parseInt(on) || 0 
+    };
     res.json({ success: true, pending: pendingCommand });
 });
 
